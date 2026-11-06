@@ -5,7 +5,7 @@ This repository holds two parts of the paper's pipeline:
 - `generator/`: the generator of the synthetic credit-card dataset and the computation of its latent-information oracle;
 - `stats/`: the paired, seed-aligned comparison used for every interval and count in the paper.
 
-The models, the feature pipeline and the proprietary datasets are not released.
+The test predictions of every run on the two public datasets are attached to a release, from which `stats/reproduce.py` recomputes the paper's intervals for those datasets. The models, the feature pipeline and the proprietary datasets are not released.
 
 ## Synthetic data
 
@@ -94,6 +94,36 @@ python stats/test_paired_stats.py
 ```
 
 With the paper's resampling seeds, this code reproduces the paper's intervals exactly.
+
+## Predictions and the paper's intervals
+
+The [v1.0 release](https://github.com/datarisk-io/fm-vs-gbdt-eval/releases/tag/v1.0) holds the test predictions of every run of the paper on the two public datasets, the synthetic dataset and MBD-mini, with their labels:
+
+- `predictions_sint.npz` (51 MB) and `predictions_mbd.npz` (20 MB);
+- `expected_sint.json` and `expected_mbd.json`, the paper's per-cell AUCs and paired comparisons for those datasets.
+
+Each `.npz` holds the test labels in row order (`label|<target>`), the as-of date of each row (`as_of`), and one score vector per run under the key `<method>|<scenario>|<target>|<training labels>|<seed>`. Scenarios are `txn` (transactions only) and `full`. The predictions on the proprietary datasets are not released.
+
+```bash
+python stats/reproduce.py predictions_sint.npz --out sint.json --check expected_sint.json
+```
+
+The script recomputes every cell and every comparison of the paper with the paper's resampling seeds and prints the largest absolute difference from the paper's values. It takes about 35 minutes for the synthetic dataset and 15 for MBD-mini on a laptop. Benjamini–Hochberg q-values are not reproduced, because the paper's family of comparisons also contains the proprietary datasets.
+
+Method keys and the names used in the paper:
+
+| Key | Paper |
+|---|---|
+| `plat_agg` | Aggregates + GBDT (Agg), the baseline |
+| `plat_agg+plat_tf`, `plat_agg+plat_tf_mcc`, `plat_agg+plat_mlp`, `plat_agg+plat_mlp_masked` | reconstruction autoencoders, frozen, appended to Agg |
+| `plat_agg+lit_mlm`, `plat_agg+lit_gpt`, `plat_agg+lit_coles`, `plat_agg+wtb_enc` | MLM, Nep, CoLES and Mlm-Cl encoders, frozen, appended to Agg |
+| `gru`, `jf_rand`, `jf_gpt`, `tabpfn_v2` | GRU, JF-rand, JF, TabPFN v2 |
+| `exp`, `plat_agg+exp` | expert features alone and with Agg (synthetic only) |
+| `plat_agg+wtb_trans`, `plat_agg+wtb_trans+wtb_enc` | Agg + Trans, and with Mlm-Cl |
+| `jf_gpt_trans`, `wtb_ens`, `wtb_full`, `wtb_rand`, `wtb_plat`, `wtb_gpt` | JF + Trans, rank ensemble, boosting residual and its variants |
+| `<key>@field` | the same method with the field encoder |
+
+The ensemble controls of the paper (`ens_tab`, `ens_agg_jf`, `ens_rand`, `ens_gru`) are rank averages of two stored methods. `reproduce.py` builds them.
 
 ## Citation
 
