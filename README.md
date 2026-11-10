@@ -101,7 +101,6 @@ The [v1.0 release](https://github.com/datarisk-io/fm-vs-gbdt-eval/releases/tag/v
 
 - `predictions_sint.npz` (51 MB) and `predictions_mbd.npz` (20 MB);
 - `expected_sint.json` and `expected_mbd.json`, the paper's per-cell AUCs and paired comparisons for those datasets.
-- `comparisons_all.json`, the paper's per-cell AUCs, paired comparisons and q-values for all four datasets, including the proprietary ones (no labels or predictions).
 
 Each `.npz` holds the test labels in row order (`label|<target>`), the as-of date of each row (`as_of`), and one score vector per run under the key `<method>|<scenario>|<target>|<training labels>|<seed>`. Scenarios are `txn` (transactions only) and `full`. The predictions on the proprietary datasets are not released.
 
@@ -109,30 +108,7 @@ Each `.npz` holds the test labels in row order (`label|<target>`), the as-of dat
 python stats/reproduce.py predictions_sint.npz --out sint.json --check expected_sint.json
 ```
 
-The script recomputes every cell and every comparison of the paper with the paper's resampling seeds and prints the largest absolute difference from the paper's values. It takes about 35 minutes for the synthetic dataset and 15 for MBD-mini on a laptop. Benjamini–Hochberg q-values are not reproduced from the predictions, because the paper's families of comparisons also contain the proprietary datasets; the next section covers them.
-
-## All comparisons, including the proprietary datasets
-
-`comparisons_all.json`, in the same release, holds the per-cell AUCs and every paired comparison of the paper for all four datasets (`synthetic`, `mbd_mini`, `client_a`, `client_b`), with the fields of `paired_stats.compare` and the paper's q-value `q`. It has no labels or predictions. The Benjamini–Hochberg adjustments of the paper can be recomputed from it:
-
-```python
-import json
-from paired_stats import benjamini_hochberg
-
-S = json.load(open("comparisons_all.json"))
-pairs = [p for d in S.values() for p in d["pairs"]]
-# Family 1: every comparison against the baseline (1,005 comparisons), as in the q field.
-base = [p for p in pairs if p["ref"] == "plat_agg"]
-q = benjamini_hochberg([p["p"] for p in base])
-# Family 2: the targeted comparisons of Tables 6 and 7 (transactions only, 273 comparisons).
-TARGETED = {("jf_gpt", "jf_rand"), ("jf_gpt", "plat_agg+lit_gpt"), ("wtb_ens", "plat_agg+wtb_trans"),
-            ("wtb_ens", "jf_gpt"), ("wtb_full", "plat_agg+wtb_trans"), ("wtb_full", "wtb_rand"),
-            ("jf_gpt@field", "jf_gpt"), ("wtb_ens@field", "wtb_ens"), ("ens_tab", "plat_agg"),
-            ("ens_rand", "plat_agg+wtb_trans"), ("wtb_ens", "ens_rand"), ("wtb_ens", "ens_agg_jf"),
-            ("wtb_ens", "ens_tab")}
-fam2 = [p for p in pairs if p["scen"] == "txn" and (p["cand"], p["ref"]) in TARGETED]
-q2 = benjamini_hochberg([p["p"] for p in fam2])
-```
+The script recomputes every cell and every comparison of the paper with the paper's resampling seeds and prints the largest absolute difference from the paper's values. It takes about 35 minutes for the synthetic dataset and 15 for MBD-mini on a laptop. Benjamini–Hochberg q-values are not reproduced from the predictions, because the paper's families of comparisons also contain the proprietary datasets, which are not released.
 
 Method keys and the names used in the paper:
 
